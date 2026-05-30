@@ -1,0 +1,13 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "DesktopPet.dir\\Release\\Stats.obj",
+            "outputs": [
+                "DesktopPet.dir\\Release\\"
+            ],
+            "requires": []
+        }
+    ]
+}

@@ -1,0 +1,20 @@
+^C:\USERS\JACKE\CODE\2026-05-23_DESKTOPPET\BUILD\CMAKEFILES\D51FA5D4AA68B4692D8117B62085F206\COPY_RESOURCES.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_directory_if_different C:/Users/jacke/code/2026-05-23_DesktopPet/res/ C:/Users/jacke/code/2026-05-23_DesktopPet/build/res/
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\JACKE\CODE\2026-05-23_DESKTOPPET\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/jacke/code/2026-05-23_DesktopPet -BC:/Users/jacke/code/2026-05-23_DesktopPet/build --check-stamp-file C:/Users/jacke/code/2026-05-23_DesktopPet/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
