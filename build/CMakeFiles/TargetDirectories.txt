@@ -1,3 +1,0 @@
-C:/Users/jacke/code/2026-05-23_DesktopPet/build/CMakeFiles/DesktopPet.dir
-C:/Users/jacke/code/2026-05-23_DesktopPet/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/jacke/code/2026-05-23_DesktopPet/build/CMakeFiles/ZERO_CHECK.dir

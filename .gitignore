@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+# Build files 
+# cmake
+build/
+build-windows/
+out/
+.vs
+.cache
