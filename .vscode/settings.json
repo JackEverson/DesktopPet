@@ -1,0 +1,10 @@
+{
+  // Build automatically before F5 launches the debugger.
+  "cmake.buildBeforeRun": true,
+
+  // Default to Debug builds in-editor (Release still works from the CLI).
+  "cmake.buildDirectory": "${workspaceFolder}/build",
+
+  // Keep IntelliSense pointed at the compile_commands.json CMake exports.
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
+}
