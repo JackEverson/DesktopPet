@@ -80,6 +80,13 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
         sheet.GenerateProcedural(Config::kSpriteWidth, Config::kSpriteHeight, 1);
     }
 
+    // Separate sheet shown while the pet is asleep. If it can't be loaded we
+    // fall back to the default sheet so sleeping still renders something.
+    SpriteSheet sleepSheet;
+    const auto sleepSpritePath = (ExeDir() / Config::kSleepSpriteSheetPath).string();
+    const bool hasSleepSheet =
+        sleepSheet.Load(sleepSpritePath, Config::kSpriteWidth, Config::kSpriteHeight);
+
     Pet pet;
     PetStats loaded;
     double offlineSeconds = 0.0;
@@ -132,8 +139,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
             const int destX = pose.xOffset; // sprite is window-wide horizontally
             const int destY = Config::kBobMargin + pose.yOffset;
 
-            window.Render(sheet.FramePixels(0), sheet.Stride(), 0, 0,
-                          sheet.FrameWidth(), sheet.FrameHeight(),
+            const bool sleeping = pet.State() == PetState::Sleeping;
+            const SpriteSheet& activeSheet =
+                (sleeping && hasSleepSheet) ? sleepSheet : sheet;
+
+            window.Render(activeSheet.FramePixels(0), activeSheet.Stride(), 0, 0,
+                          activeSheet.FrameWidth(), activeSheet.FrameHeight(),
                           destX, destY);
 
             g_TimeSinceSave += dt;

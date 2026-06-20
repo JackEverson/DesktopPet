@@ -36,5 +36,6 @@ namespace Config {
     constexpr float kAutoSaveIntervalSec = 30.0f;
 
     // Resource paths (relative to working dir; CMake copies res/ next to exe)
-    inline const char* kSpriteSheetPath = "res/pet_sprites.png";
+    inline const char* kSpriteSheetPath      = "res/pet_sprites.png";
+    inline const char* kSleepSpriteSheetPath = "res/pet_sprites_sleepy.png";
 }
