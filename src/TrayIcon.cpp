@@ -22,21 +22,33 @@ bool TrayIcon::Install(HWND owner, HICON icon, const wchar_t* tooltip) {
     return true;
 }
 
+void TrayIcon::UpdateTooltip(const wchar_t* text) {
+    if (!m_Installed) return;
+    lstrcpynW(m_Data.szTip, text,
+              static_cast<int>(sizeof(m_Data.szTip) / sizeof(wchar_t)));
+    m_Data.uFlags = NIF_TIP;
+    Shell_NotifyIconW(NIM_MODIFY, &m_Data);
+}
+
 void TrayIcon::Remove() {
     if (!m_Installed) return;
     Shell_NotifyIconW(NIM_DELETE, &m_Data);
     m_Installed = false;
 }
 
-void TrayIcon::ShowContextMenu() {
+void TrayIcon::ShowContextMenu(const wchar_t* statsLine) {
     if (!m_Owner) return;
 
     HMENU menu = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING, kCmdFeed,  L"&Feed");
-    AppendMenuW(menu, MF_STRING, kCmdPet,   L"&Pet");
-    AppendMenuW(menu, MF_STRING, kCmdSleep, L"Put to &Sleep");
+    AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, statsLine);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, kCmdQuit,  L"&Quit");
+    AppendMenuW(menu, MF_STRING, kCmdFeed,        L"&Feed");
+    AppendMenuW(menu, MF_STRING, kCmdPet,         L"&Pet");
+    AppendMenuW(menu, MF_STRING, kCmdSleep,       L"Put to &Sleep");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, kCmdNextMonitor, L"Move to &Next Monitor");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, kCmdQuit,        L"&Quit");
 
     POINT pt;
     GetCursorPos(&pt);

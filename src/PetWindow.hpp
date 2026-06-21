@@ -19,17 +19,16 @@ public:
 
     HWND Hwnd() const { return m_Hwnd; }
 
-    // Renders one sprite frame into the layered window.
-    //  src        : pointer to the top-left pixel of the sprite sheet (RGBA, top-down)
-    //  srcStride  : bytes per row of the full sheet (= sheetWidth * 4)
-    //  srcX,srcY  : top-left of the frame inside that sheet
-    //  frameW/H   : frame dimensions
-    //  destX,destY: where in the window to place the frame's top-left
-    void Render(const uint8_t* src, int srcStride, int srcX, int srcY,
-                int frameWidth, int frameHeight,
-                int destX, int destY);
+    // Multi-layer rendering: call BeginFrame, then BlitSprite once per layer
+    // (back-to-front), then EndFrame to push to screen.
+    void BeginFrame();
+    void BlitSprite(const uint8_t* src, int srcStride, int srcX, int srcY,
+                    int frameWidth, int frameHeight,
+                    int destX, int destY);
+    void EndFrame();
 
     void PositionBottomRight(int marginRight, int marginBottom);
+    void MoveToNextMonitor(int marginRight, int marginBottom);
 
     void SetMessageHandler(MessageHandler h) { m_Handler = std::move(h); }
 

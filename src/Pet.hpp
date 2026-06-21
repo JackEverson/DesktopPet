@@ -33,6 +33,7 @@ public:
     int  CurrentSpriteFrame() const { return m_Player.CurrentFrame(); }
     PetPose CurrentPose() const;
     PetState State() const { return m_State; }
+    float PhaseTime() const { return m_PhaseTime; }
     const PetStats& Stats() const { return m_Stats; }
 
 private:

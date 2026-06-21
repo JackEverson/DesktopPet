@@ -9,14 +9,16 @@ public:
     static constexpr UINT kCallbackMessage = WM_APP + 1;
 
     // Menu command IDs; the owner WndProc receives these via WM_COMMAND.
-    static constexpr UINT kCmdFeed  = 1001;
-    static constexpr UINT kCmdPet   = 1002;
-    static constexpr UINT kCmdSleep = 1003;
-    static constexpr UINT kCmdQuit  = 1004;
+    static constexpr UINT kCmdFeed        = 1001;
+    static constexpr UINT kCmdPet         = 1002;
+    static constexpr UINT kCmdSleep       = 1003;
+    static constexpr UINT kCmdQuit        = 1004;
+    static constexpr UINT kCmdNextMonitor = 1005;
 
     bool Install(HWND owner, HICON icon, const wchar_t* tooltip);
     void Remove();
-    void ShowContextMenu();
+    void ShowContextMenu(const wchar_t* statsLine);
+    void UpdateTooltip(const wchar_t* text);
 
 private:
     HWND  m_Owner = nullptr;

@@ -28,8 +28,12 @@ namespace Config {
     constexpr float kAutoSleepEnergyThreshold = 15.0f;
     constexpr float kAutoWakeEnergyThreshold  = 80.0f;
 
+    // Eating animation: 3 bites, each 4s (2s regular → 2s eat sprite → third disappears).
+    constexpr int   kEatingBiteCount   = 3;
+    constexpr float kEatingDurationSec = 6.0f;  // kEatingBiteCount × 2s per bite
+    constexpr float kBiteEatPhaseSec   = 1.0f;  // eat sprite shows in the last 1s of each bite
+
     // How long the transient states last before returning to idle.
-    constexpr float kEatingDurationSec = 1.6f;
     constexpr float kHappyDurationSec  = 1.4f;
 
     // Save cadence
@@ -38,4 +42,6 @@ namespace Config {
     // Resource paths (relative to working dir; CMake copies res/ next to exe)
     inline const char* kSpriteSheetPath      = "res/pet_sprites.png";
     inline const char* kSleepSpriteSheetPath = "res/pet_sprites_sleepy.png";
+    inline const char* kEatSpriteSheetPath   = "res/pet_sprites_eat.png";
+    inline const char* kFoodSpriteSheetPath  = "res/pet_food.png";
 }

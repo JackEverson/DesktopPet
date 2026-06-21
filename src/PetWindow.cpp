@@ -2,6 +2,8 @@
 
 #include <windowsx.h>
 #include <cstring>
+#include <algorithm>
+#include <vector>
 
 namespace {
     constexpr const wchar_t* kClassName = L"DesktopPet_PetWindow";
@@ -81,16 +83,42 @@ void PetWindow::PositionBottomRight(int marginRight, int marginBottom) {
                  SWP_NOACTIVATE | SWP_SHOWWINDOW);
 }
 
-void PetWindow::Render(const uint8_t* src, int srcStride, int srcX, int srcY,
-                       int frameWidth, int frameHeight,
-                       int destX, int destY) {
+void PetWindow::MoveToNextMonitor(int marginRight, int marginBottom) {
+    struct Ctx { std::vector<HMONITOR> monitors; };
+    Ctx ctx;
+    EnumDisplayMonitors(nullptr, nullptr,
+        [](HMONITOR mon, HDC, LPRECT, LPARAM lp) -> BOOL {
+            reinterpret_cast<Ctx*>(lp)->monitors.push_back(mon);
+            return TRUE;
+        }, reinterpret_cast<LPARAM>(&ctx));
+
+    if (ctx.monitors.size() <= 1) return;
+
+    HMONITOR current = MonitorFromWindow(m_Hwnd, MONITOR_DEFAULTTONEAREST);
+    auto it = std::find(ctx.monitors.begin(), ctx.monitors.end(), current);
+    const size_t next = (it != ctx.monitors.end())
+        ? (static_cast<size_t>(std::distance(ctx.monitors.begin(), it)) + 1) % ctx.monitors.size()
+        : 0;
+
+    MONITORINFO mi{};
+    mi.cbSize = sizeof(mi);
+    GetMonitorInfo(ctx.monitors[next], &mi);
+
+    const int x = mi.rcWork.right  - m_Width  - marginRight;
+    const int y = mi.rcWork.bottom - m_Height - marginBottom;
+    SetWindowPos(m_Hwnd, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
+}
+
+void PetWindow::BeginFrame() {
+    if (!m_DibPixels) return;
+    std::memset(m_DibPixels, 0, static_cast<size_t>(m_Width) * m_Height * 4);
+}
+
+void PetWindow::BlitSprite(const uint8_t* src, int srcStride, int srcX, int srcY,
+                            int frameWidth, int frameHeight,
+                            int destX, int destY) {
     if (!m_DibPixels || !src) return;
 
-    // Wipe to fully transparent so the previous frame's pixels (which may be
-    // at a different destX/destY due to per-state motion) don't ghost.
-    std::memset(m_DibPixels, 0, static_cast<size_t>(m_Width) * m_Height * 4);
-
-    // Clip the source rect against the window.
     const int x0 = (destX < 0) ? 0 : destX;
     const int y0 = (destY < 0) ? 0 : destY;
     const int x1 = (destX + frameWidth  > m_Width)  ? m_Width  : destX + frameWidth;
@@ -103,18 +131,23 @@ void PetWindow::Render(const uint8_t* src, int srcStride, int srcX, int srcY,
         for (int x = x0; x < x1; ++x) {
             const int sx = srcX + (x - destX);
             const uint8_t* sp = srcRow + sx * 4;
-            const uint8_t r = sp[0];
-            const uint8_t g = sp[1];
-            const uint8_t b = sp[2];
             const uint8_t a = sp[3];
+            if (a == 0) continue;
+            // Premultiply source then Porter-Duff "over" onto existing content.
+            const uint8_t pb = static_cast<uint8_t>((uint32_t)sp[2] * a / 255);
+            const uint8_t pg = static_cast<uint8_t>((uint32_t)sp[1] * a / 255);
+            const uint8_t pr = static_cast<uint8_t>((uint32_t)sp[0] * a / 255);
+            const uint8_t inv_a = 255 - a;
             uint8_t* dp = dstRow + x * 4;
-            dp[0] = static_cast<uint8_t>(b * a / 255);
-            dp[1] = static_cast<uint8_t>(g * a / 255);
-            dp[2] = static_cast<uint8_t>(r * a / 255);
-            dp[3] = a;
+            dp[0] = static_cast<uint8_t>(pb + (uint32_t)dp[0] * inv_a / 255);
+            dp[1] = static_cast<uint8_t>(pg + (uint32_t)dp[1] * inv_a / 255);
+            dp[2] = static_cast<uint8_t>(pr + (uint32_t)dp[2] * inv_a / 255);
+            dp[3] = static_cast<uint8_t>(a  + (uint32_t)dp[3] * inv_a / 255);
         }
     }
+}
 
+void PetWindow::EndFrame() {
     POINT srcPt{ 0, 0 };
     SIZE sz{ m_Width, m_Height };
     BLENDFUNCTION blend{};
@@ -149,7 +182,7 @@ LRESULT PetWindow::HitTest(int screenX, int screenY) const {
     if (pt.x < 0 || pt.y < 0 || pt.x >= m_Width || pt.y >= m_Height) return HTTRANSPARENT;
     // Alpha lives at byte 3 of the BGRA pixel.
     const uint8_t a = m_DibPixels[(pt.y * m_Width + pt.x) * 4 + 3];
-    return (a > 16) ? HTCLIENT : HTTRANSPARENT;
+    return (a > 16) ? HTCAPTION : HTTRANSPARENT;
 }
 
 LRESULT PetWindow::HandleMessage(UINT msg, WPARAM wp, LPARAM lp) {

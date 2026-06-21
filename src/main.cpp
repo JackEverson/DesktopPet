@@ -2,8 +2,9 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#include <algorithm>
+#include <cwchar>
 #include <filesystem>
-#include <string>
 
 #include "Config.hpp"
 #include "Pet.hpp"
@@ -26,6 +27,17 @@ namespace {
         if (g_Pet) StatsStore::Save(g_Pet->SnapshotStats());
     }
 
+    void UpdateTrayTooltip() {
+        if (!g_Tray || !g_Pet) return;
+        const PetStats& s = g_Pet->Stats();
+        wchar_t buf[128];
+        swprintf_s(buf, L"Hunger: %d  Happiness: %d  Energy: %d",
+                   static_cast<int>(s.hunger),
+                   static_cast<int>(s.happiness),
+                   static_cast<int>(s.energy));
+        g_Tray->UpdateTooltip(buf);
+    }
+
     std::filesystem::path ExeDir() {
         wchar_t buf[MAX_PATH];
         const DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
@@ -35,13 +47,24 @@ namespace {
 
     bool OnMessage(UINT msg, WPARAM wp, LPARAM lp) {
         switch (msg) {
-            case WM_LBUTTONDOWN:
-                if (g_Pet) g_Pet->PetIt();
-                return true;
+            case WM_NCLBUTTONDOWN:
+                if (wp == HTCAPTION && g_Pet) {
+                    g_Pet->PetIt();
+                    UpdateTrayTooltip();
+                }
+                return false; // let DefWindowProc handle the drag
 
             case TrayIcon::kCallbackMessage:
                 if (LOWORD(lp) == WM_RBUTTONUP || LOWORD(lp) == WM_CONTEXTMENU) {
-                    if (g_Tray) g_Tray->ShowContextMenu();
+                    if (g_Tray && g_Pet) {
+                        const PetStats& s = g_Pet->Stats();
+                        wchar_t statsLine[128];
+                        swprintf_s(statsLine, L"Hunger: %d  Happiness: %d  Energy: %d",
+                                   static_cast<int>(s.hunger),
+                                   static_cast<int>(s.happiness),
+                                   static_cast<int>(s.energy));
+                        g_Tray->ShowContextMenu(statsLine);
+                    }
                 }
                 return true;
 
@@ -49,9 +72,21 @@ namespace {
                 const UINT id = LOWORD(wp);
                 if (!g_Pet) return false;
                 switch (id) {
-                    case TrayIcon::kCmdFeed:  g_Pet->Feed();        return true;
-                    case TrayIcon::kCmdPet:   g_Pet->PetIt();       return true;
-                    case TrayIcon::kCmdSleep: g_Pet->PutToSleep();  return true;
+                    case TrayIcon::kCmdFeed:
+                        g_Pet->Feed();
+                        UpdateTrayTooltip();
+                        return true;
+                    case TrayIcon::kCmdPet:
+                        g_Pet->PetIt();
+                        UpdateTrayTooltip();
+                        return true;
+                    case TrayIcon::kCmdSleep:
+                        g_Pet->PutToSleep();
+                        UpdateTrayTooltip();
+                        return true;
+                    case TrayIcon::kCmdNextMonitor:
+                        if (g_Window) g_Window->MoveToNextMonitor(40, 60);
+                        return true;
                     case TrayIcon::kCmdQuit:
                         SaveNow();
                         if (g_Tray) g_Tray->Remove();
@@ -80,12 +115,20 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
         sheet.GenerateProcedural(Config::kSpriteWidth, Config::kSpriteHeight, 1);
     }
 
-    // Separate sheet shown while the pet is asleep. If it can't be loaded we
-    // fall back to the default sheet so sleeping still renders something.
     SpriteSheet sleepSheet;
     const auto sleepSpritePath = (ExeDir() / Config::kSleepSpriteSheetPath).string();
     const bool hasSleepSheet =
         sleepSheet.Load(sleepSpritePath, Config::kSpriteWidth, Config::kSpriteHeight);
+
+    SpriteSheet eatSheet;
+    const auto eatSpritePath = (ExeDir() / Config::kEatSpriteSheetPath).string();
+    const bool hasEatSheet =
+        eatSheet.Load(eatSpritePath, Config::kSpriteWidth, Config::kSpriteHeight);
+
+    SpriteSheet foodSheet;
+    const auto foodSpritePath = (ExeDir() / Config::kFoodSpriteSheetPath).string();
+    const bool hasFoodSheet =
+        foodSheet.Load(foodSpritePath, Config::kSpriteWidth, Config::kSpriteHeight);
 
     Pet pet;
     PetStats loaded;
@@ -136,21 +179,48 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
             pet.Update(dt);
 
             const PetPose pose = pet.CurrentPose();
-            const int destX = pose.xOffset; // sprite is window-wide horizontally
+            const int destX = pose.xOffset;
             const int destY = Config::kBobMargin + pose.yOffset;
 
             const bool sleeping = pet.State() == PetState::Sleeping;
-            const SpriteSheet& activeSheet =
-                (sleeping && hasSleepSheet) ? sleepSheet : sheet;
+            const bool eating   = pet.State() == PetState::Eating;
 
-            window.Render(activeSheet.FramePixels(0), activeSheet.Stride(), 0, 0,
-                          activeSheet.FrameWidth(), activeSheet.FrameHeight(),
-                          destX, destY);
+            // Eating bite: which bite we're on and whether the eat-pose is active.
+            int  bite        = 0;
+            bool eatPoseOpen = false;
+            if (eating) {
+                const float phaseTime    = pet.PhaseTime();
+                const float biteDuration = Config::kEatingDurationSec / static_cast<float>(Config::kEatingBiteCount);
+                bite        = std::min(static_cast<int>(phaseTime / biteDuration),
+                                       Config::kEatingBiteCount - 1);
+                eatPoseOpen = (phaseTime - static_cast<float>(bite) * biteDuration) >= (biteDuration - Config::kBiteEatPhaseSec);
+            }
+
+            const SpriteSheet* petSheet = &sheet;
+            if (sleeping && hasSleepSheet)       petSheet = &sleepSheet;
+            else if (eating && eatPoseOpen && hasEatSheet) petSheet = &eatSheet;
+
+            window.BeginFrame();
+            window.BlitSprite(petSheet->FramePixels(0), petSheet->Stride(), 0, 0,
+                              petSheet->FrameWidth(), petSheet->FrameHeight(),
+                              destX, destY);
+
+            // Food overlay: stays still, disappears top-to-bottom one third per bite.
+            if (eating && hasFoodSheet) {
+                const int rowsGone  = bite * (Config::kSpriteHeight / Config::kEatingBiteCount);
+                const int foodH     = Config::kSpriteHeight - rowsGone;
+                window.BlitSprite(foodSheet.FramePixels(0), foodSheet.Stride(),
+                                  0, rowsGone, Config::kSpriteWidth, foodH,
+                                  0, Config::kBobMargin + rowsGone);
+            }
+
+            window.EndFrame();
 
             g_TimeSinceSave += dt;
             if (g_TimeSinceSave >= Config::kAutoSaveIntervalSec) {
                 g_TimeSinceSave = 0.0f;
                 SaveNow();
+                UpdateTrayTooltip();
             }
         } else {
             Sleep(1);
