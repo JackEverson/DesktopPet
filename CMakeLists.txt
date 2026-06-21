@@ -47,7 +47,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 # MinGW needs an explicit link of -mwindows for the GUI subsystem too
 if(NOT MSVC)
-  target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
+  target_link_options(${PROJECT_NAME} PRIVATE -mwindows -static -static-libgcc -static-libstdc++)
 endif()
 
 # Copy res/ next to the actual built binary (which lands under Release/ or
