@@ -19,8 +19,8 @@ namespace Config {
     constexpr float kHappinessDecayPerSec = 0.06f;
     constexpr float kEnergyDecayPerSec    = 0.04f;
 
-    // Restoration amounts
-    constexpr float kFeedRestore        = 35.0f;
+    // Restoration amounts. Feeding always fully restores hunger; petting
+    // adds 25 points (= 25% of the 0-100 scale).
     constexpr float kPetRestore         = 25.0f;
     constexpr float kSleepRestorePerSec = 4.0f;
 

@@ -65,8 +65,18 @@ void Pet::Update(float dt) {
         EnterState(PetState::Idle);
     }
 
-    if (m_State == PetState::Idle && m_Stats.energy <= Config::kAutoSleepEnergyThreshold) {
-        EnterState(PetState::Sleeping);
+    // Auto-restore when a stat bottoms out; only fires from Idle so we
+    // don't interrupt an in-progress Eating/Happy/Sleeping state. Priority
+    // is hunger → sleep → happiness; whichever fires first changes state
+    // and short-circuits the rest.
+    if (m_State == PetState::Idle) {
+        if (m_Stats.hunger <= 0.0f) {
+            Feed();
+        } else if (m_Stats.energy <= Config::kAutoSleepEnergyThreshold) {
+            EnterState(PetState::Sleeping);
+        } else if (m_Stats.happiness <= 0.0f) {
+            PetIt();
+        }
     }
 }
 
@@ -99,7 +109,7 @@ PetPose Pet::CurrentPose() const {
 }
 
 void Pet::Feed() {
-    m_Stats.hunger = Clamp01_100(m_Stats.hunger + Config::kFeedRestore);
+    m_Stats.hunger = 100.0f;
     EnterState(PetState::Eating);
 }
 
